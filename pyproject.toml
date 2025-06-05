@@ -1,0 +1,47 @@
+[project]
+name = "strategy-porfolio-opt"
+version = "0.1.0"
+description = "Numeric Optimization course project."
+authors = [
+    {name = "Liav Katry",email = "liavcol@gmail.com"},
+    {name = "Niv Vaknin",email = "vaknin34@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "yfinance (>=0.2.61,<0.3.0)",
+    "matplotlib (>=3.10.3,<4.0.0)",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11.10"
+pre-commit = "^4.2.0"
+ipykernel = "^6.29.5"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["tests", "*.ipynb"]
+
+[tool.ruff.lint]
+# On top of the default `select` (`E4`, E7`, `E9`, and `F`), enable:
+# * flake8-bugbear (`B`)
+# * flake8-quotes (`Q`)
+# * flake8-implicit-str-concat (`ISC`)
+# * flake8-raise (`RSE`)
+# * flake8-return (`RET`)
+# * flake8-simplify (`SIM`)
+# * pycodestyle (E, W)
+extend-select = ["B", "Q", "ISC", "RSE", "RET", "SIM", "E", "W"]
+# Ignore detecting missing trailing commas
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.format]
+quote-style = "single"
+skip-magic-trailing-comma = true

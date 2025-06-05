@@ -1,0 +1,12 @@
+**.pyc
+**.vscode
+**tmp*.ipynb
+**.pytest_cache
+**__pycache__**
+**.egg-info
+**Settings.json
+!**StrategyDefinition.json
+build*
+!TestGrid.ipynb
+.DS_Store
+.ruff_cache
