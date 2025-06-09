@@ -90,6 +90,11 @@ class ConstrainedMin:
                 v, grad, hess = g_i(x, eval_hessian=eval_hessian)
                 c_vals.append(v);  c_grads.append(grad);  c_hess.append(hess)
 
+            # Check for constraint violations that would cause log domain errors
+            for i, v in enumerate(c_vals):
+                if v >= 0:
+                    raise ValueError(f"Constraint {i} violated: value {v} >= 0. Barrier method requires all inequality constraints to be strictly negative.")
+            
             phi = -sum(np.log(-v)          for v in c_vals)
             gphi = sum((-1/v)  * grad       for v, grad in zip(c_vals, c_grads))
 
