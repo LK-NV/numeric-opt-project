@@ -191,3 +191,107 @@ class ConstrainedMin:
             print(f"[outer {outer_iter}] t={t:.1e}, f={self.obj_val_path[-1]:.6g}")
 
         return x
+    
+
+    def phase1_feasible(
+            self: "ConstrainedMin",
+            A_eq: np.ndarray,
+            b_eq: np.ndarray,
+            ineqs: list[Callable[[np.ndarray, bool], FunctionEvaluationResult]],
+            beta: float = 1.0,
+            margin: float = 1e-3
+    ) -> np.ndarray:
+        """
+        Phase I of the interior point method to find a strictly feasible point
+        for the given problem with equality constraints `A_eq` and `b_eq`
+        and inequality constraints `ineqs`.
+        This function constructs an augmented problem with an additional variable `t`
+        to ensure strict feasibility and solves it using the interior point method.
+        Parameters
+        ----------
+        A_eq : np.ndarray
+            Coefficient matrix for equality constraints.
+        b_eq : np.ndarray
+            Right-hand side vector for equality constraints.
+        ineqs : list[Callable[[np.ndarray, bool], FunctionEvaluationResult]]
+            List of inequality constraint functions, each taking a vector `z`
+            and a boolean `eval_hessian`, returning a tuple of function value,
+            gradient, and Hessian (if `eval_hessian` is True).
+        beta : float, optional
+            A small positive constant to ensure the barrier is finite.
+            Default is 1.0.
+        margin : float, optional
+            A small positive constant to nudge the initial point away from the boundaries.
+            Default is 1e-3.
+
+        Returns
+        -------
+        w0 : np.ndarray
+            Vector with 1ᵀw0 = 1  and   g_i(w0) < 0  for every original inequality.
+        """
+
+        n = A_eq.shape[1]               # number of assets
+
+        # -----------------------------------------------------------------
+        # 1.  Objective  f₁(w,t) = t
+        # -----------------------------------------------------------------
+        def f1(z: np.ndarray, eval_hessian: bool = True) -> FunctionEvaluationResult:
+            t = z[-1]
+            g = np.zeros_like(z);  g[-1] = 1.0
+            H = np.zeros((n+1, n+1)) if eval_hessian else None
+            return t, g, H
+
+        # -----------------------------------------------------------------
+        # 2.  Augment equality  (append zero column for t)
+        # -----------------------------------------------------------------
+        A_eq_aug = np.hstack([A_eq, np.zeros((A_eq.shape[0], 1))])   # shape (1, n+1)
+
+        # -----------------------------------------------------------------
+        # 3.  Build augmented inequalities  g̃_i(z) = g_i(w) − t ≤ 0
+        # -----------------------------------------------------------------
+        ineq_aug = []
+
+        for g_i in ineqs:
+            def g_aug(z, *, g_i=g_i, eval_hessian=True):
+                w, t = z[:-1], z[-1]
+                val, grad_w, _ = g_i(w, eval_hessian=False)
+                val -= t
+                grad = np.zeros_like(z)
+                grad[:-1] = grad_w
+                grad[-1]  = -1
+                return val, grad, np.zeros((n+1, n+1))
+            ineq_aug.append(g_aug)
+
+        # -----------------------------------------------------------------
+        # 4.  Lower bound on t :  −t − β ≤ 0      (keeps barrier finite)
+        # -----------------------------------------------------------------
+        def g_t(z, *, eval_hessian=True):
+            t = z[-1]
+            grad = np.zeros(n+1);  grad[-1] = -1
+            return -t - beta, grad, np.zeros((n+1, n+1))
+        ineq_aug.append(g_t)
+
+        # -----------------------------------------------------------------
+        # 5.  Initial point  z0 = [w0 , t0] strictly inside
+        # -----------------------------------------------------------------
+        w0 = np.full(n, 1.0 / n)              # equal weights
+        w0 = (w0 + margin) / (1.0 + n*margin) # nudge off the boundaries
+        t0 = beta                             # put us well inside  −t−β ≤ 0
+        z0 = np.append(w0, t0)
+
+        # -----------------------------------------------------------------
+        # 6.  Run Phase I with the same solver
+        # -----------------------------------------------------------------
+        z_star = self.interior_pt(
+            f=f1,
+            ineq_constraints=ineq_aug,
+            eq_constraints_mat=A_eq_aug,
+            eq_constraints_rhs=b_eq,
+            x0=z0
+        )
+
+        w_star, t_star = z_star[:-1], z_star[-1]
+        if t_star >= 0:
+            raise RuntimeError("Phase I failed: no strictly feasible point")
+
+        return w_star           # ready for Phase II
