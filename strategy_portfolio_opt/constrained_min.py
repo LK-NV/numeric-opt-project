@@ -276,7 +276,15 @@ class ConstrainedMin:
         # -----------------------------------------------------------------
         w0 = np.full(n, 1.0 / n)              # equal weights
         w0 = (w0 + margin) / (1.0 + n*margin) # nudge off the boundaries
-        t0 = beta                             # put us well inside  −t−β ≤ 0
+        
+        # Check if initial point violates any original constraints too badly
+        max_violation = 0
+        for g_i in ineqs:
+            val, _, _ = g_i(w0, eval_hessian=False)
+            max_violation = max(max_violation, val)
+        
+        # Set t0 to be larger than the maximum constraint violation
+        t0 = max(beta, max_violation + margin)
         z0 = np.append(w0, t0)
 
         # -----------------------------------------------------------------
